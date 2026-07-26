@@ -1,0 +1,3 @@
+/home/ubuntu/ldd/his-dragon/build/CMakeFiles/his-dragon.dir
+/home/ubuntu/ldd/his-dragon/build/CMakeFiles/edit_cache.dir
+/home/ubuntu/ldd/his-dragon/build/CMakeFiles/rebuild_cache.dir
