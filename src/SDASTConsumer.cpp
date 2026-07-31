@@ -1,9 +1,12 @@
 #include "SDASTConsumer.h"
-#include "SDRecursiveASTVisitor.h"
 
+SDASTConsumer::SDASTConsumer(
+    clang::SourceManager& sourceManager)
+    : visitor_(sourceManager)
+{
+}
 
 void SDASTConsumer::HandleTranslationUnit(clang::ASTContext& context){
-    SDRecursiveASTVisitor visitor;
-    visitor.TraverseDecl(
+    visitor_.TraverseDecl(
     context.getTranslationUnitDecl());
 }
