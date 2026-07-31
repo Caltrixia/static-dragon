@@ -1,11 +1,8 @@
 #pragma once
+#include <clang/AST/RecursiveASTVisitor.h>
 
-
-class MyVisitor : public RecursiveASTVisitor<MyVisitor>
+class SDRecursiveASTVisitor : public clang::RecursiveASTVisitor<SDRecursiveASTVisitor>
 {
 public:
-    bool VisitFunctionDecl(FunctionDecl *FD)
-    {
-        llvm::outs() <<  FD->getNameAsString() << "\n"
-    }
+    bool VisitFunctionDecl(clang::FunctionDecl* func);
 };
