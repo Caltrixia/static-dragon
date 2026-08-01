@@ -12,8 +12,6 @@ int calculate(int value)
 
     return 0;
 }
-
-int main()
-{
-    return calculate(5);
+int main(){
+    return 0;
 }

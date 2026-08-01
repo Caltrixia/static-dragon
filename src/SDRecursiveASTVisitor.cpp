@@ -1,6 +1,7 @@
 #include "SDRecursiveASTVisitor.h"
 #include <clang/AST/Decl.h>
 #include <llvm/Support/raw_ostream.h>
+#include "SDFunctionBodyVisitor.h"
 
 SDRecursiveASTVisitor::SDRecursiveASTVisitor(
     clang::SourceManager& sourceManager)
@@ -8,64 +9,58 @@ SDRecursiveASTVisitor::SDRecursiveASTVisitor(
 {
 }
 
-bool SDRecursiveASTVisitor::VisitFunctionDecl(clang::FunctionDecl* func)
+bool SDRecursiveASTVisitor::VisitFunctionDecl(clang::FunctionDecl* functionDecl)
 {
-    // skip if func is nullptr
-    if(func == nullptr){
+    // skip if func is nullptr or does not have body
+    if(functionDecl == nullptr || !functionDecl->hasBody()){
         return true;
     }
 
-    //only analyze if func has body
-    if (!func->hasBody())
-    {   
-        return true;
-    }
-    
-    const clang::SourceLocation beginLoc = func->getBeginLoc();
-    const clang::SourceLocation endLoc = func->getEndLoc();
+    clang::Stmt* functionBody = functionDecl->getBody();
 
-    //skip functions in headers
-    if(sourceManager_.isInSystemHeader(beginLoc))
-    {
+    if (functionBody == nullptr) {
         return true;
     }
 
-    //get lines
-    const unsigned startLine = sourceManager_.getSpellingLineNumber(beginLoc);
-    const unsigned endLine = sourceManager_.getSpellingLineNumber(endLoc);
+    clang::SourceLocation startLocation =
+    sourceManager_.getExpansionLoc(functionDecl->getBeginLoc());
 
-    const unsigned lineCount = (endLine >= startLine) ? endLine - startLine + 1 : 0;
-    
-    const unsigned paramCount = func->getNumParams();
+    clang::SourceLocation endLocation =
+    sourceManager_.getExpansionLoc(functionBody->getEndLoc());
 
-    const llvm::StringRef fileName = sourceManager_.getFilename(beginLoc);
+    if (startLocation.isInvalid() || endLocation.isInvalid()) {
+        return true;
+    }
 
-    llvm::outs() << "Function: "
-                 << func->getNameAsString()
-                 << '\n';
-    
-    llvm::outs() << " File: " 
-                 << fileName
-                 << '\n';
+    // ignore system headers
+    if (sourceManager_.isInSystemHeader(startLocation)) {
+        return true;
+    }
 
-    llvm::outs()
-        << "  Has body: yes\n";                 
+    FunctionMetrics metrics;
+    metrics.name = functionDecl->getQualifiedNameAsString();
+    metrics.file = sourceManager_.getFilename(startLocation).str();
+    metrics.startLine = sourceManager_.getSpellingLineNumber(startLocation);
+    metrics.endLine = sourceManager_.getSpellingLineNumber(endLocation);
 
-    llvm::outs()
-        << "  Start line: "
-        << startLine
-        << '\n';
+    if (metrics.endLine >= metrics.startLine) {
+        metrics.physicalLines = metrics.endLine - metrics.startLine + 1;
+    }
 
-    llvm::outs()
-        << "  End line: "
-        << endLine
-        << '\n';
+    metrics.parameterCount = functionDecl->getNumParams();
 
-    llvm::outs()
-        << "  Lines: "
-        << lineCount
-        << "\n\n";
+    SDFunctionBodyVisitor functionBodyVisitor;
+    functionBodyVisitor.TraverseStmt(functionBody);
+
+    metrics.functionBodyMetrics = functionBodyVisitor.metrics();
+
+    functionMetrics_.push_back(std::move(metrics));
 
     return true;
+}
+
+const std::vector<FunctionMetrics>& SDRecursiveASTVisitor::getFunctionMetrics() const
+{
+    return functionMetrics_;
 }
 

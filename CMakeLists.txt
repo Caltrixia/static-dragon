@@ -31,6 +31,8 @@ add_executable(
     src/SDASTConsumer.cpp
     src/SDFrontendAction.cpp
     src/SDRecursiveASTVisitor.cpp
+    src/SDFunctionBodyVisitor.cpp
+    src/SDReportGenerator.cpp
 )
 
 target_link_libraries(static-dragon
@@ -50,3 +52,5 @@ target_include_directories(
     ${CLANG_INCLUDE_DIRS}
     include
 )
+
+target_compile_definitions(static-dragon PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")

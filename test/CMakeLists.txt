@@ -8,3 +8,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(test1 test1.cpp)
 add_executable(test2 test2.cpp)
+add_executable(test3 test3.cpp)
+
+target_compile_definitions(test3 PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
