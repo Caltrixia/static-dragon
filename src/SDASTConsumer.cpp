@@ -3,42 +3,39 @@
 #include <iostream>
 
 SDASTConsumer::SDASTConsumer(
-    clang::SourceManager& sourceManager)
-    : visitor_(sourceManager)
+    clang::SourceManager& sourceManager, SDMetricsCollector& collector)
+    : visitor_(sourceManager), collector_(collector)
 {
 }
 
 void SDASTConsumer::HandleTranslationUnit(clang::ASTContext& context){
     visitor_.TraverseDecl(
     context.getTranslationUnitDecl());
-    const std::vector<FunctionMetrics>& metrics = visitor_.getFunctionMetrics();
 
-    //print/save to reports
-    bool success = true;
+    const clang::SourceManager& sourceManager =
+    context.getSourceManager();
 
-    SDReportGenerator::printToTerminal(metrics);
+    const clang::FileID mainFileID =
+        sourceManager.getMainFileID();
 
-    success &= SDReportGenerator::saveTextReport(
-        metrics,
-        "his-dragon-report.txt"
-    );
+    const auto fileEntryRef =
+        sourceManager.getFileEntryRefForID(mainFileID);
 
-    success &= SDReportGenerator::saveCSVReport(
-        metrics,
-        "his-dragon-report.csv"
-    );
-
-    success &= SDReportGenerator::saveJSONReport(
-        metrics,
-        "his-dragon-report.json"
-    );
-
-    success &= SDReportGenerator::saveHTMLReport(
-        metrics,
-        "his-dragon-report.html"
-    );
-
-    if (!success) {
-        std::cerr << "One or more reports could not be generated\n";
+    if (!fileEntryRef) {
+        std::cerr
+            << "Failed to determine main source file\n";
+        return;
     }
+
+    TranslationUnitMetrics translationUnitMetrics;
+
+    translationUnitMetrics.file =
+        fileEntryRef->getName().str();
+
+    translationUnitMetrics.functionMetrics =
+        visitor_.getFunctionMetrics();
+
+    collector_.addTranslationUnit(
+        std::move(translationUnitMetrics)
+    );
 }

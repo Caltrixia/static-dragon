@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct FunctionBodyMetrics
 {
@@ -41,6 +42,6 @@ struct FunctionMetrics
 struct TranslationUnitMetrics
 {
     std::string file;
-    std::vector<FunctionMetrics> functions;
+    std::vector<FunctionMetrics> functionMetrics;
 };
 

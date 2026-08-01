@@ -33,6 +33,8 @@ add_executable(
     src/SDRecursiveASTVisitor.cpp
     src/SDFunctionBodyVisitor.cpp
     src/SDReportGenerator.cpp
+    src/SDFrondendActionFactory.cpp
+    src/SDMetricsCollector.cpp
 )
 
 target_link_libraries(static-dragon

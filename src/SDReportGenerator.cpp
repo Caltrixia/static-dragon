@@ -3,83 +3,136 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <ostream>
 #include <sstream>
-#include <filesystem>
-
-namespace
-{
-constexpr int FUNCTION_WIDTH = 32;
-constexpr int LINE_WIDTH = 10;
-constexpr int METRIC_WIDTH = 14;
-}
+#include <string>
 
 namespace fs = std::filesystem;
 
+namespace
+{
+
+constexpr int FILE_WIDTH = 42;
+constexpr int FUNCTION_WIDTH = 32;
+constexpr int LINE_WIDTH = 10;
+constexpr int METRIC_WIDTH = 14;
+
+std::size_t countFunctions(
+    const std::vector<TranslationUnitMetrics>& allMetrics)
+{
+    std::size_t totalFunctions = 0;
+
+    for (const TranslationUnitMetrics& unit : allMetrics) {
+        totalFunctions += unit.functionMetrics.size();
+    }
+
+    return totalFunctions;
+}
+
+bool checkOutputStream(
+    const std::ofstream& outputFile,
+    const fs::path& outputPath,
+    const std::string& reportType)
+{
+    if (outputFile) {
+        return true;
+    }
+
+    std::cerr
+        << "Failed while writing "
+        << reportType
+        << " report: "
+        << outputPath
+        << '\n';
+
+    return false;
+}
+
+} // namespace
 
 void SDReportGenerator::printToTerminal(
-    const std::vector<FunctionMetrics>& metrics)
+    const std::vector<TranslationUnitMetrics>& allMetrics)
 {
-    printToStream(metrics, std::cout);
+    printToStream(allMetrics, std::cout);
 }
 
 void SDReportGenerator::printToStream(
-    const std::vector<FunctionMetrics>& metrics,
+    const std::vector<TranslationUnitMetrics>& allMetrics,
     std::ostream& output)
 {
-    output << "\n================ HIS Dragon Report ================\n";
-    output << "Total functions: " << metrics.size() << "\n\n";
+    const std::size_t totalFunctions =
+        countFunctions(allMetrics);
 
     output
-        << std::left
-        << std::setw(FUNCTION_WIDTH) << "Function"
-        << std::setw(LINE_WIDTH) << "Lines"
-        << std::setw(LINE_WIDTH) << "Params"
-        << std::setw(METRIC_WIDTH) << "Statements"
-        << std::setw(METRIC_WIDTH) << "Complexity"
-        << std::setw(METRIC_WIDTH) << "Max nesting"
-        << std::setw(METRIC_WIDTH) << "Returns"
-        << '\n';
+        << "\n================ Static Dragon Report ================\n"
+        << "Total translation units: "
+        << allMetrics.size()
+        << '\n'
+        << "Total functions: "
+        << totalFunctions
+        << "\n\n";
 
-    output << std::string(
-        FUNCTION_WIDTH +
-        LINE_WIDTH * 2 +
-        METRIC_WIDTH * 4,
-        '-'
-    ) << '\n';
-
-    for (const FunctionMetrics& function : metrics) {
-        const FunctionBodyMetrics& body = function.functionBodyMetrics;
+    for (const TranslationUnitMetrics& unit : allMetrics) {
+        output
+            << "File: "
+            << unit.file
+            << '\n'
+            << "Functions: "
+            << unit.functionMetrics.size()
+            << "\n\n";
 
         output
             << std::left
-            << std::setw(FUNCTION_WIDTH) << function.name
-            << std::setw(LINE_WIDTH) << function.physicalLines
-            << std::setw(LINE_WIDTH) << function.parameterCount
-            << std::setw(METRIC_WIDTH) << body.statementCount
-            << std::setw(METRIC_WIDTH) << body.cyclomaticComplexity
-            << std::setw(METRIC_WIDTH) << body.maximumNestingDepth
-            << std::setw(METRIC_WIDTH) << body.returnCount
+            << std::setw(FUNCTION_WIDTH) << "Function"
+            << std::setw(LINE_WIDTH) << "Lines"
+            << std::setw(LINE_WIDTH) << "Params"
+            << std::setw(METRIC_WIDTH) << "Statements"
+            << std::setw(METRIC_WIDTH) << "Complexity"
+            << std::setw(METRIC_WIDTH) << "Max nesting"
+            << std::setw(METRIC_WIDTH) << "Returns"
             << '\n';
-    }
 
-    output << '\n';
+        output
+            << std::string(
+                FUNCTION_WIDTH +
+                    LINE_WIDTH * 2 +
+                    METRIC_WIDTH * 4,
+                '-')
+            << '\n';
+
+        for (const FunctionMetrics& function :
+             unit.functionMetrics) {
+            const FunctionBodyMetrics& body =
+                function.functionBodyMetrics;
+
+            output
+                << std::left
+                << std::setw(FUNCTION_WIDTH)
+                << function.name
+                << std::setw(LINE_WIDTH)
+                << function.physicalLines
+                << std::setw(LINE_WIDTH)
+                << function.parameterCount
+                << std::setw(METRIC_WIDTH)
+                << body.statementCount
+                << std::setw(METRIC_WIDTH)
+                << body.cyclomaticComplexity
+                << std::setw(METRIC_WIDTH)
+                << body.maximumNestingDepth
+                << std::setw(METRIC_WIDTH)
+                << body.returnCount
+                << '\n';
+        }
+
+        output << '\n';
+    }
 }
 
 bool SDReportGenerator::saveTextReport(
-    const std::vector<FunctionMetrics>& metrics,
-    const std::string& filename)
+    const std::vector<TranslationUnitMetrics>& allMetrics,
+    const fs::path& outputPath)
 {
-    fs ::path reportDir = std::filesystem::path(PROJECT_ROOT) / "reports";
-    if(!fs::exists(reportDir)){
-        fs::create_directories(reportDir);
-    } else if(!fs::is_directory(reportDir)){
-        std::cerr << reportDir << " exists but is not a directory.\n";
-        return false;        
-    }
-
-    const fs::path outputPath = reportDir / filename;
-    
     std::ofstream outputFile(outputPath);
 
     if (!outputFile.is_open()) {
@@ -91,25 +144,18 @@ bool SDReportGenerator::saveTextReport(
         return false;
     }
 
-    printToStream(metrics, outputFile);
+    printToStream(allMetrics, outputFile);
 
-    return true;
+    return checkOutputStream(
+        outputFile,
+        outputPath,
+        "text");
 }
 
 bool SDReportGenerator::saveCSVReport(
-    const std::vector<FunctionMetrics>& metrics,
-    const std::string& filename)
+    const std::vector<TranslationUnitMetrics>& allMetrics,
+    const fs::path& outputPath)
 {
-    fs ::path reportDir = std::filesystem::path(PROJECT_ROOT) / "reports";
-    if(!fs::exists(reportDir)){
-        fs::create_directories(reportDir);
-    } else if(!fs::is_directory(reportDir)){
-        std::cerr << reportDir << " exists but is not a directory.\n";
-        return false;       
-    }
-
-    const fs::path outputPath = reportDir / filename;
-
     std::ofstream outputFile(outputPath);
 
     if (!outputFile.is_open()) {
@@ -122,8 +168,8 @@ bool SDReportGenerator::saveCSVReport(
     }
 
     outputFile
-        << "name,"
         << "file,"
+        << "name,"
         << "start_line,"
         << "end_line,"
         << "physical_lines,"
@@ -133,40 +179,37 @@ bool SDReportGenerator::saveCSVReport(
         << "maximum_nesting_depth,"
         << "return_count\n";
 
-    for (const FunctionMetrics& function : metrics) {
-        const FunctionBodyMetrics& body = function.functionBodyMetrics;
+    for (const TranslationUnitMetrics& unit : allMetrics) {
+        for (const FunctionMetrics& function :
+             unit.functionMetrics) {
+            const FunctionBodyMetrics& body =
+                function.functionBodyMetrics;
 
-        outputFile
-            << escapeCSV(function.name) << ','
-            << escapeCSV(function.file) << ','
-            << function.startLine << ','
-            << function.endLine << ','
-            << function.physicalLines << ','
-            << function.parameterCount << ','
-            << body.statementCount << ','
-            << body.cyclomaticComplexity << ','
-            << body.maximumNestingDepth << ','
-            << body.returnCount
-            << '\n';
+            outputFile
+                << escapeCSV(unit.file) << ','
+                << escapeCSV(function.name) << ','
+                << function.startLine << ','
+                << function.endLine << ','
+                << function.physicalLines << ','
+                << function.parameterCount << ','
+                << body.statementCount << ','
+                << body.cyclomaticComplexity << ','
+                << body.maximumNestingDepth << ','
+                << body.returnCount
+                << '\n';
+        }
     }
 
-    return true;
+    return checkOutputStream(
+        outputFile,
+        outputPath,
+        "CSV");
 }
 
 bool SDReportGenerator::saveJSONReport(
-    const std::vector<FunctionMetrics>& metrics,
-    const std::string& filename)
+    const std::vector<TranslationUnitMetrics>& allMetrics,
+    const fs::path& outputPath)
 {
-    fs ::path reportDir = std::filesystem::path(PROJECT_ROOT) / "reports";
-    if(!fs::exists(reportDir)){
-        fs::create_directories(reportDir);
-    } else if(!fs::is_directory(reportDir)){
-        std::cerr << reportDir << " exists but is not a directory.\n";
-        return false;        
-    }
-
-    const fs::path outputPath = reportDir / filename;
-
     std::ofstream outputFile(outputPath);
 
     if (!outputFile.is_open()) {
@@ -179,71 +222,108 @@ bool SDReportGenerator::saveJSONReport(
     }
 
     outputFile << "{\n";
-    outputFile << "  \"tool\": \"HIS Dragon\",\n";
-    outputFile << "  \"functionCount\": " << metrics.size() << ",\n";
-    outputFile << "  \"functions\": [\n";
+    outputFile << "  \"tool\": \"Static Dragon\",\n";
+    outputFile
+        << "  \"translationUnitCount\": "
+        << allMetrics.size()
+        << ",\n";
+    outputFile
+        << "  \"functionCount\": "
+        << countFunctions(allMetrics)
+        << ",\n";
+    outputFile << "  \"translationUnits\": [\n";
 
-    for (std::size_t index = 0; index < metrics.size(); ++index) {
-        const FunctionMetrics& function = metrics[index];
-        const FunctionBodyMetrics& body = function.functionBodyMetrics;
+    for (std::size_t unitIndex = 0;
+         unitIndex < allMetrics.size();
+         ++unitIndex) {
+        const TranslationUnitMetrics& unit =
+            allMetrics[unitIndex];
 
         outputFile << "    {\n";
         outputFile
-            << "      \"name\": \""
-            << escapeJSON(function.name)
-            << "\",\n";
-
-        outputFile
             << "      \"file\": \""
-            << escapeJSON(function.file)
+            << escapeJSON(unit.file)
             << "\",\n";
-
         outputFile
-            << "      \"startLine\": "
-            << function.startLine
+            << "      \"functionCount\": "
+            << unit.functionMetrics.size()
             << ",\n";
+        outputFile << "      \"functions\": [\n";
 
-        outputFile
-            << "      \"endLine\": "
-            << function.endLine
-            << ",\n";
+        for (std::size_t functionIndex = 0;
+             functionIndex < unit.functionMetrics.size();
+             ++functionIndex) {
+            const FunctionMetrics& function =
+                unit.functionMetrics[functionIndex];
 
-        outputFile
-            << "      \"physicalLines\": "
-            << function.physicalLines
-            << ",\n";
+            const FunctionBodyMetrics& body =
+                function.functionBodyMetrics;
 
-        outputFile
-            << "      \"parameterCount\": "
-            << function.parameterCount
-            << ",\n";
+            outputFile << "        {\n";
 
-        outputFile << "      \"bodyMetrics\": {\n";
+            outputFile
+                << "          \"name\": \""
+                << escapeJSON(function.name)
+                << "\",\n";
 
-        outputFile
-            << "        \"statementCount\": "
-            << body.statementCount
-            << ",\n";
+            outputFile
+                << "          \"startLine\": "
+                << function.startLine
+                << ",\n";
 
-        outputFile
-            << "        \"cyclomaticComplexity\": "
-            << body.cyclomaticComplexity
-            << ",\n";
+            outputFile
+                << "          \"endLine\": "
+                << function.endLine
+                << ",\n";
 
-        outputFile
-            << "        \"maximumNestingDepth\": "
-            << body.maximumNestingDepth
-            << ",\n";
+            outputFile
+                << "          \"physicalLines\": "
+                << function.physicalLines
+                << ",\n";
 
-        outputFile
-            << "        \"returnCount\": "
-            << body.returnCount
-            << '\n';
+            outputFile
+                << "          \"parameterCount\": "
+                << function.parameterCount
+                << ",\n";
 
-        outputFile << "      }\n";
+            outputFile
+                << "          \"bodyMetrics\": {\n";
+
+            outputFile
+                << "            \"statementCount\": "
+                << body.statementCount
+                << ",\n";
+
+            outputFile
+                << "            \"cyclomaticComplexity\": "
+                << body.cyclomaticComplexity
+                << ",\n";
+
+            outputFile
+                << "            \"maximumNestingDepth\": "
+                << body.maximumNestingDepth
+                << ",\n";
+
+            outputFile
+                << "            \"returnCount\": "
+                << body.returnCount
+                << '\n';
+
+            outputFile << "          }\n";
+            outputFile << "        }";
+
+            if (functionIndex + 1 <
+                unit.functionMetrics.size()) {
+                outputFile << ',';
+            }
+
+            outputFile << '\n';
+        }
+
+        outputFile << "      ]\n";
         outputFile << "    }";
 
-        if (index + 1 < metrics.size()) {
+        if (unitIndex + 1 < allMetrics.size()) {
             outputFile << ',';
         }
 
@@ -253,23 +333,16 @@ bool SDReportGenerator::saveJSONReport(
     outputFile << "  ]\n";
     outputFile << "}\n";
 
-    return true;
+    return checkOutputStream(
+        outputFile,
+        outputPath,
+        "JSON");
 }
 
 bool SDReportGenerator::saveHTMLReport(
-    const std::vector<FunctionMetrics>& metrics,
-    const std::string& filename)
+    const std::vector<TranslationUnitMetrics>& allMetrics,
+    const fs::path& outputPath)
 {
-    fs ::path reportDir = std::filesystem::path(PROJECT_ROOT) / "reports";
-    if(!fs::exists(reportDir)){
-        fs::create_directories(reportDir);
-    } else if(!fs::is_directory(reportDir)){
-        std::cerr << reportDir << " exists but is not a directory.\n";
-        return false;        
-    }
-
-    const fs::path outputPath = reportDir / filename;
-
     std::ofstream outputFile(outputPath);
 
     if (!outputFile.is_open()) {
@@ -285,8 +358,10 @@ bool SDReportGenerator::saveHTMLReport(
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HIS Dragon Report</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Static Dragon Report</title>
 
     <style>
         body {
@@ -310,6 +385,11 @@ bool SDReportGenerator::saveHTMLReport(
             margin-top: 0;
         }
 
+        h2 {
+            margin-top: 36px;
+            overflow-wrap: anywhere;
+        }
+
         .summary {
             background: #eef3ff;
             border-left: 4px solid #3f6ad8;
@@ -317,12 +397,19 @@ bool SDReportGenerator::saveHTMLReport(
             margin-bottom: 24px;
         }
 
+        .unit-summary {
+            color: #5f6368;
+            margin-bottom: 12px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 32px;
         }
 
-        th, td {
+        th,
+        td {
             border-bottom: 1px solid #dddddd;
             text-align: left;
             padding: 10px;
@@ -343,11 +430,6 @@ bool SDReportGenerator::saveHTMLReport(
             background: #fff1f0;
         }
 
-        .path {
-            max-width: 300px;
-            overflow-wrap: anywhere;
-        }
-
         .number {
             text-align: right;
         }
@@ -356,113 +438,129 @@ bool SDReportGenerator::saveHTMLReport(
 
 <body>
 <div class="container">
-    <h1>HIS Dragon Report</h1>
+    <h1>Static Dragon Report</h1>
 )";
 
     outputFile
-        << "    <div class=\"summary\">"
-        << "Total functions analyzed: <strong>"
-        << metrics.size()
-        << "</strong></div>\n";
+        << "    <div class=\"summary\">\n"
+        << "        Translation units analyzed: <strong>"
+        << allMetrics.size()
+        << "</strong><br>\n"
+        << "        Total functions analyzed: <strong>"
+        << countFunctions(allMetrics)
+        << "</strong>\n"
+        << "    </div>\n";
 
-    outputFile << R"(
-    <table>
-        <thead>
-            <tr>
-                <th>Function</th>
-                <th>File</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Lines</th>
-                <th>Parameters</th>
-                <th>Statements</th>
-                <th>Complexity</th>
-                <th>Max nesting</th>
-                <th>Returns</th>
-            </tr>
-        </thead>
+    for (const TranslationUnitMetrics& unit : allMetrics) {
+        outputFile
+            << "    <section>\n"
+            << "        <h2>"
+            << escapeHTML(unit.file)
+            << "</h2>\n"
+            << "        <div class=\"unit-summary\">"
+            << unit.functionMetrics.size()
+            << " function(s)</div>\n";
 
-        <tbody>
+        outputFile << R"(
+        <table>
+            <thead>
+                <tr>
+                    <th>Function</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Lines</th>
+                    <th>Parameters</th>
+                    <th>Statements</th>
+                    <th>Complexity</th>
+                    <th>Max nesting</th>
+                    <th>Returns</th>
+                </tr>
+            </thead>
+
+            <tbody>
 )";
 
-    for (const FunctionMetrics& function : metrics) {
-        const FunctionBodyMetrics& body = function.functionBodyMetrics;
+        for (const FunctionMetrics& function :
+             unit.functionMetrics) {
+            const FunctionBodyMetrics& body =
+                function.functionBodyMetrics;
 
-        
-        const bool hasHighComplexity =
-            body.cyclomaticComplexity > 10;
+            const bool hasHighComplexity =
+                body.cyclomaticComplexity > 10;
 
-        outputFile
-            << "            <tr";
+            outputFile << "                <tr";
 
-        if (hasHighComplexity) {
-            outputFile << " class=\"warning\"";
+            if (hasHighComplexity) {
+                outputFile << " class=\"warning\"";
+            }
+
+            outputFile << ">\n";
+
+            outputFile
+                << "                    <td>"
+                << escapeHTML(function.name)
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << function.startLine
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << function.endLine
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << function.physicalLines
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << function.parameterCount
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << body.statementCount
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << body.cyclomaticComplexity
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << body.maximumNestingDepth
+                << "</td>\n";
+
+            outputFile
+                << "                    <td class=\"number\">"
+                << body.returnCount
+                << "</td>\n";
+
+            outputFile << "                </tr>\n";
         }
 
-        outputFile << ">\n";
-
-        outputFile
-            << "                <td>"
-            << escapeHTML(function.name)
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"path\">"
-            << escapeHTML(function.file)
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << function.startLine
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << function.endLine
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << function.physicalLines
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << function.parameterCount
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << body.statementCount
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << body.cyclomaticComplexity
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << body.maximumNestingDepth
-            << "</td>\n";
-
-        outputFile
-            << "                <td class=\"number\">"
-            << body.returnCount
-            << "</td>\n";
-
-        outputFile << "            </tr>\n";
+        outputFile << R"(
+            </tbody>
+        </table>
+    </section>
+)";
     }
 
     outputFile << R"(
-        </tbody>
-    </table>
 </div>
 </body>
 </html>
 )";
 
-    return true;
+    return checkOutputStream(
+        outputFile,
+        outputPath,
+        "HTML");
 }
 
 std::string SDReportGenerator::escapeJSON(
@@ -490,6 +588,14 @@ std::string SDReportGenerator::escapeJSON(
 
         case '\t':
             escaped << "\\t";
+            break;
+
+        case '\b':
+            escaped << "\\b";
+            break;
+
+        case '\f':
+            escaped << "\\f";
             break;
 
         default:

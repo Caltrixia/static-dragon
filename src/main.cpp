@@ -8,8 +8,11 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <filesystem>
 
+#include "SDFrondendActionFactory.h"
 #include "SDFrontendAction.h"
+#include "SDReportGenerator.h"
 
 //tool options
 namespace
@@ -19,6 +22,8 @@ llvm::cl::OptionCategory StaticDragonCategory(
     "static-dragon options");
 
 } // namespace
+
+namespace fs = std::filesystem;
 
 int main(int argc, const char** argv)
 {
@@ -63,10 +68,10 @@ int main(int argc, const char** argv)
         optionsParser.getCompilations(),
         sourceFiles);
 
-    std::unique_ptr<clang::tooling::FrontendActionFactory> actionFactory =
-        clang::tooling::newFrontendActionFactory<SDFrontendAction>();
+    SDMetricsCollector collector;
+    SDFrondendActionFactory actionFactory(collector);
 
-    const int result = tool.run(actionFactory.get());
+    const int result = tool.run(&actionFactory);
 
     if (result != 0)
     {
@@ -79,6 +84,60 @@ int main(int argc, const char** argv)
     }
 
     llvm::outs() << "Static Dragon analysis completed.\n";
+
+    const auto& allMetrics =
+    collector.getTranslationUnits();
+
+    //save/print results
+
+    fs::path reportDir = std::filesystem::path(PROJECT_ROOT) / "reports";
+    
+    if(!fs::exists(reportDir)){
+        fs::create_directories(reportDir);
+    } else if(!fs::is_directory(reportDir)){
+        std::cerr << reportDir << " exists but is not a directory.\n";
+        return 1;        
+    }
+
+
+    SDReportGenerator::printToTerminal(allMetrics);
+
+    bool reportsGenerated = true;
+
+    const std::string txtFileName = "his-dragon-report.txt";
+    const fs::path outputTxtPath = reportDir / txtFileName;
+    reportsGenerated &=
+    SDReportGenerator::saveTextReport(
+        allMetrics,
+        outputTxtPath);
+
+    const std::string csvFileName = "his-dragon-report.csv";
+    const fs::path outputCsvPath = reportDir / csvFileName;
+    reportsGenerated &=
+    SDReportGenerator::saveCSVReport(
+        allMetrics,
+        outputCsvPath);
+
+    const std::string jsonFileName = "his-dragon-report.json";
+    const fs::path outputJsonPath = reportDir / jsonFileName;
+    reportsGenerated &=
+    SDReportGenerator::saveJSONReport(
+        allMetrics,
+        outputJsonPath);
+
+    const std::string htmlFileName = "his-dragon-report.html";
+    const fs::path outputHtmlPath = reportDir / htmlFileName;
+    reportsGenerated &=
+    SDReportGenerator::saveHTMLReport(
+        allMetrics,
+        outputHtmlPath);
+
+    if (!reportsGenerated)
+    {
+        llvm::errs()
+            << "One or more reports could not be generated\n";
+        return 1;
+    }
 
     return 0;
 }
