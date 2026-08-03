@@ -22,29 +22,59 @@ chmod +x build.sh
 ## 2. Test with simple project
 cmake -S test -B test/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ./build/static-dragon -p test/build test/*.cpp
+
+
 ## Architecture
-                CLI
-                 │
-                 ▼
-          Project Loader
-                 │
-                 ▼
-      Compilation Database
-                 │
-      (compile_commands.json)
-                 │
-                 ▼
-          Clang Frontend
-                 │
-                 ▼
-               AST
-                 │
-                 ▼
-      Static Dragon Analyzers
-        ├── Metrics
-        ├── Complexity
-        ├── Design Rules
-        ├── Memory Rules
-        ├── Call Graph
-        ├── Dependencies
-        └── Reports
+
+```text
+                +----------------+
+                |   C++ Source   |
+                +----------------+
+                        |
+                        v
+              +-------------------+
+              |   Clang LibTooling|
+              +-------------------+
+                        |
+                        v
+              +-------------------+
+              |   AST Traversal   |
+              | (RecursiveVisitor)|
+              +-------------------+
+                        |
+                        v
+              +-------------------+
+              | Metric Collection |
+              +-------------------+
+                        |
+                        v
+              +-------------------+
+              | Report Generator  |
+              +-------------------+
+                        |
+        +---------------+---------------+
+        |       |        |       |      |
+        v       v        v       v      v
+    Terminal   TXT      CSV    JSON   HTML
+```
+
+## Components
+
+- **Clang LibTooling** – Parses C++ source code and builds the AST.
+- **AST Traversal** – Visits functions and extracts information.
+- **Metric Collection** – Computes software metrics for each function.
+- **Report Generator** – Exports results to multiple report formats.
+
+## Workflow
+
+```text
+Source Code
+    ↓
+Parse AST
+    ↓
+Analyze Functions
+    ↓
+Compute Metrics
+    ↓
+Generate Reports
+```
