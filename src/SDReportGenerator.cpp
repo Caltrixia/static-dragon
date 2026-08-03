@@ -18,6 +18,35 @@ constexpr int FUNCTION_WIDTH = 32;
 constexpr int LINE_WIDTH = 10;
 constexpr int METRIC_WIDTH = 14;
 
+std::string centerText(
+    const std::string& value,
+    const int width)
+{
+    if (static_cast<int>(value.size()) >= width) {
+        return value;
+    }
+
+    const int totalPadding =
+        width - static_cast<int>(value.size());
+    const int leftPadding = totalPadding / 2;
+    const int rightPadding = totalPadding - leftPadding;
+
+    return std::string(leftPadding, ' ') +
+           value +
+           std::string(rightPadding, ' ');
+}
+
+template <typename T>
+std::string centerValue(
+    const T& value,
+    const int width)
+{
+    std::ostringstream stream;
+    stream << value;
+
+    return centerText(stream.str(), width);
+}
+
 std::size_t countFunctions(
     const std::vector<TranslationUnitMetrics>& allMetrics)
 {
@@ -85,19 +114,18 @@ void SDReportGenerator::printToStream(
         output
             << std::left
             << std::setw(FUNCTION_WIDTH) << "Function"
-            << std::setw(LINE_WIDTH) << "Lines"
-            << std::setw(LINE_WIDTH) << "Params"
-            << std::setw(METRIC_WIDTH) << "Statements"
-            << std::setw(METRIC_WIDTH) << "Complexity"
-            << std::setw(METRIC_WIDTH) << "Max nesting"
-            << std::setw(METRIC_WIDTH) << "Returns"
+            << centerText("Lines", LINE_WIDTH)
+            << centerText("Params", LINE_WIDTH)
+            << centerText("Complexity", METRIC_WIDTH)
+            << centerText("Max nesting", METRIC_WIDTH)
+            << centerText("Returns", METRIC_WIDTH)
             << '\n';
 
         output
             << std::string(
                 FUNCTION_WIDTH +
                     LINE_WIDTH * 2 +
-                    METRIC_WIDTH * 4,
+                    METRIC_WIDTH * 3,
                 '-')
             << '\n';
 
@@ -110,18 +138,21 @@ void SDReportGenerator::printToStream(
                 << std::left
                 << std::setw(FUNCTION_WIDTH)
                 << function.name
-                << std::setw(LINE_WIDTH)
-                << function.physicalLines
-                << std::setw(LINE_WIDTH)
-                << function.parameterCount
-                << std::setw(METRIC_WIDTH)
-                << body.statementCount
-                << std::setw(METRIC_WIDTH)
-                << body.cyclomaticComplexity
-                << std::setw(METRIC_WIDTH)
-                << body.maximumNestingDepth
-                << std::setw(METRIC_WIDTH)
-                << body.returnCount
+                << centerValue(
+                       function.physicalLines,
+                       LINE_WIDTH)
+                << centerValue(
+                       function.parameterCount,
+                       LINE_WIDTH)
+                << centerValue(
+                       body.cyclomaticComplexity,
+                       METRIC_WIDTH)
+                << centerValue(
+                       body.maximumNestingDepth,
+                       METRIC_WIDTH)
+                << centerValue(
+                       body.returnCount,
+                       METRIC_WIDTH)
                 << '\n';
         }
 
@@ -174,7 +205,6 @@ bool SDReportGenerator::saveCSVReport(
         << "end_line,"
         << "physical_lines,"
         << "parameter_count,"
-        << "statement_count,"
         << "cyclomatic_complexity,"
         << "maximum_nesting_depth,"
         << "return_count\n";
@@ -192,7 +222,6 @@ bool SDReportGenerator::saveCSVReport(
                 << function.endLine << ','
                 << function.physicalLines << ','
                 << function.parameterCount << ','
-                << body.statementCount << ','
                 << body.cyclomaticComplexity << ','
                 << body.maximumNestingDepth << ','
                 << body.returnCount
@@ -288,11 +317,6 @@ bool SDReportGenerator::saveJSONReport(
 
             outputFile
                 << "          \"bodyMetrics\": {\n";
-
-            outputFile
-                << "            \"statementCount\": "
-                << body.statementCount
-                << ",\n";
 
             outputFile
                 << "            \"cyclomaticComplexity\": "
@@ -411,8 +435,16 @@ bool SDReportGenerator::saveHTMLReport(
         th,
         td {
             border-bottom: 1px solid #dddddd;
-            text-align: left;
             padding: 10px;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
         }
 
         th {
@@ -431,7 +463,7 @@ bool SDReportGenerator::saveHTMLReport(
         }
 
         .number {
-            text-align: right;
+            text-align: center;
         }
     </style>
 </head>
@@ -470,7 +502,6 @@ bool SDReportGenerator::saveHTMLReport(
                     <th>End</th>
                     <th>Lines</th>
                     <th>Parameters</th>
-                    <th>Statements</th>
                     <th>Complexity</th>
                     <th>Max nesting</th>
                     <th>Returns</th>
@@ -519,11 +550,6 @@ bool SDReportGenerator::saveHTMLReport(
             outputFile
                 << "                    <td class=\"number\">"
                 << function.parameterCount
-                << "</td>\n";
-
-            outputFile
-                << "                    <td class=\"number\">"
-                << body.statementCount
                 << "</td>\n";
 
             outputFile
