@@ -20,8 +20,12 @@ chmod +x build.sh
 
 
 ## 2. Test with simple project
+### 2.1 Test with raw command
 cmake -S test -B test/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ./build/static-dragon -p test/build test/*.cpp
+
+### 2.2 Test with json config 
+./build/static-dragon --config config/test.json
 
 
 ## Architecture
