@@ -15,6 +15,7 @@ set(Clang_DIR "/usr/lib/llvm-14/lib/cmake/clang")
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
+find_package(nlohmann_json REQUIRED)
 
 message(STATUS "LLVM version: ${LLVM_PACKAGE_VERSION}")
 message(STATUS "LLVM dir: ${LLVM_DIR}")
@@ -35,7 +36,13 @@ add_executable(
     src/SDReportGenerator.cpp
     src/SDFrondendActionFactory.cpp
     src/SDMetricsCollector.cpp
+    src/SDConfiguration.cpp
+    src/SDApplication.cpp
 )
+
+#install the executable to the bin directory
+install(TARGETS static-dragon
+        RUNTIME DESTINATION bin)
 
 target_link_libraries(static-dragon
                     PRIVATE
@@ -45,6 +52,7 @@ target_link_libraries(static-dragon
                     clangASTMatchers
                     clangBasic
                     clangLex
+                    nlohmann_json::nlohmann_json
 )
 
 target_include_directories(
@@ -56,3 +64,4 @@ target_include_directories(
 )
 
 target_compile_definitions(static-dragon PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+

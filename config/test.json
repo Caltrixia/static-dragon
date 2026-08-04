@@ -1,0 +1,17 @@
+{ 
+
+  "project": { 
+      "name": "Test Project", 
+      "build_directory": "test/build" 
+    },
+
+  "analysis": { 
+      "files": [ "test/test1.cpp", "test/test2.cpp", "test/test3.cpp" ] 
+    }, 
+
+  "reports": { 
+      "output_directory": "reports", 
+      "formats": [ "terminal", "html", "json", "csv" ] 
+    } 
+    
+}
