@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "SDConfiguration.h"
-#include "SDFrondendActionFactory.h"
+#include "SDFrontendActionFactory.h"
 #include "SDReportGenerator.h"
 
 namespace fs = std::filesystem;
@@ -124,6 +124,11 @@ int SDApplication::run(
 int SDApplication::runFromConfiguration(
     const fs::path& configPath)
 {
+    llvm::outs()
+        << "Static Dragon is running with configuration file: "
+        << configPath.string()
+        << '\n';
+
     if (configPath.empty()) {
         llvm::errs()
             << "static-dragon: --config requires a file\n"
@@ -140,12 +145,13 @@ int SDApplication::runFromConfiguration(
     }
 
     std::string databaseError;
-
+    const std::string buildDirectoryString = configuration.buildDirectory().string();
+     
     std::unique_ptr<clang::tooling::CompilationDatabase>
         compilationDatabase =
             clang::tooling::CompilationDatabase::
                 loadFromDirectory(
-                    configuration.buildDirectory(),
+                    buildDirectoryString,
                     databaseError);
 
     if (!compilationDatabase) {
@@ -253,7 +259,7 @@ int SDApplication::runAnalysis(
         sourceFiles);
 
     SDMetricsCollector collector;
-    SDFrondendActionFactory actionFactory(collector);
+    SDFrontendActionFactory actionFactory(collector);
 
     const int analysisResult =
         tool.run(&actionFactory);

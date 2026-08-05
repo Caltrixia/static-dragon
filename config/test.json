@@ -11,7 +11,7 @@
 
   "reports": { 
       "output_directory": "reports", 
-      "formats": [ "terminal", "html", "json", "csv" ] 
+      "formats": [ "terminal", "html", "json", "csv" , "txt" ] 
     } 
     
 }

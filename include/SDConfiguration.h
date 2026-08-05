@@ -17,9 +17,9 @@ public:
     };
     bool loadFromFile(const fs::path& file);
     const std::string& projectName() const;
-    const std::string& buildDirectory() const;
+    const fs::path& buildDirectory() const noexcept;
     const std::vector<std::string>& files() const;
-    const fs::path& outputDirectory() const;
+    const fs::path& outputDirectory() const noexcept;
     const std::vector<ReportFormat>& formats() const;
 
 private:

@@ -5,6 +5,8 @@
 #include <nlohmann/json.hpp>
 #include <utility>
 
+#include <llvm/Support/raw_ostream.h>
+
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
@@ -22,17 +24,17 @@ bool SDConfiguration::loadFromFile(const fs::path& file) {
 
         projectName_ = config.at("project").at("name").get<std::string>();
 
-        buildDirectory_ = config.at("project").at("build_directory").get<std::string>();
+        buildDirectory_ = config.at("project").at("build_directory").get<fs::path>();
 
         files_ = config.at("analysis").at("files").get<std::vector<std::string>>();
 
-        outputDirectory_ = config.at("reports").at("output_directory").get<std::string>();
+        outputDirectory_ = config.at("reports").at("output_directory").get<fs::path>();
 
         formats_.clear();
 
         for (const auto& formatNode : config.at("reports").at("formats")) {
             const std::string format = formatNode.get<std::string>();
-            std::cout << "Report format: " << format << '\n';
+
             if (format == "terminal") {
                 formats_.push_back(SDConfiguration::ReportFormat::Terminal);
             } else if (format == "txt") {
@@ -44,19 +46,19 @@ bool SDConfiguration::loadFromFile(const fs::path& file) {
             } else if (format == "html") {
                 formats_.push_back(SDConfiguration::ReportFormat::HTML);
             } else {
-                std::cerr << "Unsupported report format: " << format << '\n';
+                llvm::errs() << "Unsupported report format: " << format << '\n';
                 return false;
             }
         }
     }
 
     catch (const json::out_of_range& error) {
-        std::cerr << "Missing required configuration field in: " << file << '\n' << error.what() << '\n'; 
+        llvm::errs() << "Missing required configuration field in: " << file << '\n' << error.what() << '\n'; 
         return false;
     }
     catch (const json::type_error& error) 
     { 
-        std::cerr << "Invalid configuration value type in: " << file << '\n' << error.what() << '\n'; 
+        llvm::errs() << "Invalid configuration value type in: " << file << '\n' << error.what() << '\n'; 
         return false; 
     }
 
@@ -67,7 +69,8 @@ const std::string& SDConfiguration::projectName() const {
     return projectName_;
 }
 
-const std::string& SDConfiguration::buildDirectory() const {
+const fs::path& SDConfiguration::buildDirectory() const noexcept
+{
     return buildDirectory_;
 }
 
@@ -75,7 +78,7 @@ const std::vector<std::string>& SDConfiguration::files() const {
     return files_;
 }
 
-const fs::path& SDConfiguration::outputDirectory() const {
+const fs::path& SDConfiguration::outputDirectory() const noexcept {
     return outputDirectory_;
 }
 

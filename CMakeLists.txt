@@ -34,7 +34,7 @@ add_executable(
     src/SDRecursiveASTVisitor.cpp
     src/SDFunctionBodyVisitor.cpp
     src/SDReportGenerator.cpp
-    src/SDFrondendActionFactory.cpp
+    src/SDFrontendActionFactory.cpp
     src/SDMetricsCollector.cpp
     src/SDConfiguration.cpp
     src/SDApplication.cpp
